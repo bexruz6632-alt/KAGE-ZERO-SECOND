@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>KAGE: ZERO SECOND — Prototype</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="ui">
+    <div class="bar-wrap">
+      <div class="label">RAY (HP)</div>
+      <div class="bar"><div id="playerHpBar" class="fill player"></div></div>
+    </div>
+    <div class="bar-wrap">
+      <div class="label" id="enemyLabel">ENEMY (HP)</div>
+      <div class="bar"><div id="enemyHpBar" class="fill enemy"></div></div>
+    </div>
+    <div id="status">
+      <span id="echoStatus">ECHO: готов (E)</span>
+      <span id="zeroStatus">ZERO SECOND: недоступен (Q)</span>
+    </div>
+    <div id="hint">WASD — движение · E — создать Echo · Q — ZERO SECOND · Space — атака</div>
+  </div>
+
+  <div id="banner" class="hidden"></div>
+
+  <!-- three.js core from CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.min.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
