@@ -62,32 +62,125 @@ const grid = new THREE.GridHelper(60, 40, 0x2dd4ff, 0x7f5cff);
 grid.position.y = 0.01;
 scene.add(grid);
 
-// ---------- ИГРОК ----------
-function makeCharacterMesh(color) {
+// ---------- КОСМИЧЕСКОЕ НЕБО: ЗВЁЗДЫ + ПЛАНЕТЫ ----------
+function createStarfield(count = 1600) {
+  const positions = new Float32Array(count * 3);
+  for (let i = 0; i < count; i++) {
+    const r = 90 + Math.random() * 80;
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.acos(Math.random()); // только верхняя полусфера — небо, не под землёй
+    positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+    positions[i * 3 + 1] = r * Math.cos(phi) + 8;
+    positions[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  const material = new THREE.PointsMaterial({ color: 0xffffff, size: 0.7, sizeAttenuation: true, fog: false });
+  scene.add(new THREE.Points(geometry, material));
+}
+createStarfield();
+
+function createPlanet({ radius, color, x, y, z, ring = false }) {
+  const mat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.35, roughness: 0.6, fog: false });
+  const planet = new THREE.Mesh(new THREE.SphereGeometry(radius, 20, 20), mat);
+  planet.position.set(x, y, z);
+  scene.add(planet);
+  if (ring) {
+    const ringMesh = new THREE.Mesh(
+      new THREE.RingGeometry(radius * 1.4, radius * 1.9, 32),
+      new THREE.MeshBasicMaterial({ color: 0xd9c48f, side: THREE.DoubleSide, transparent: true, opacity: 0.55, fog: false })
+    );
+    ringMesh.rotation.x = Math.PI / 2 - 0.35;
+    ringMesh.position.set(x, y, z);
+    scene.add(ringMesh);
+  }
+}
+
+createPlanet({ radius: 3.2, color: 0x7f5cff, x: -55, y: 30, z: -70, ring: true });
+createPlanet({ radius: 1.8, color: 0xff9d5c, x: 60, y: 22, z: -60 });
+createPlanet({ radius: 2.4, color: 0x2dd4ff, x: 40, y: 45, z: 65 });
+createPlanet({ radius: 1.3, color: 0xff5c8a, x: -35, y: 50, z: 55 });
+createPlanet({ radius: 2.0, color: 0x9cf6ff, x: 0, y: 60, z: -85 });
+
+// ---------- ИГРОК: ФИГУРА МАГА ----------
+// Строим силуэт мага из простых форм: плащ (конус/цилиндр), капюшон,
+// накидка сзади и посох со светящимся навершием — вместо простого кубика.
+function makeMageMesh(color) {
   const group = new THREE.Group();
-  const body = new THREE.Mesh(
-    new THREE.BoxGeometry(0.8, 1.4, 0.6),
-    new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.15 })
+
+  // мантия/плащ — сужается кверху
+  const robe = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.24, 0.5, 1.3, 10),
+    new THREE.MeshStandardMaterial({ color: 0x14141f, emissive: color, emissiveIntensity: 0.12 })
   );
-  body.position.y = 0.7;
-  group.add(body);
-  // "нос" — показывает направление взгляда
-  const nose = new THREE.Mesh(
-    new THREE.BoxGeometry(0.2, 0.2, 0.3),
-    new THREE.MeshStandardMaterial({ color: 0xffffff })
+  robe.position.y = 0.75;
+  group.add(robe);
+
+  // светящаяся кайма понизу мантии
+  const trim = new THREE.Mesh(
+    new THREE.TorusGeometry(0.46, 0.035, 8, 20),
+    new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 1.4 })
   );
-  nose.position.set(0, 0.9, 0.4);
-  group.add(nose);
-  group.userData.bodyMesh = body;
+  trim.rotation.x = Math.PI / 2;
+  trim.position.y = 0.16;
+  group.add(trim);
+
+  // голова
+  const head = new THREE.Mesh(
+    new THREE.SphereGeometry(0.22, 14, 14),
+    new THREE.MeshStandardMaterial({ color: 0xf0cba6 })
+  );
+  head.position.y = 1.53;
+  group.add(head);
+
+  // капюшон
+  const hood = new THREE.Mesh(
+    new THREE.ConeGeometry(0.32, 0.5, 12, 1, true),
+    new THREE.MeshStandardMaterial({ color: 0x14141f, emissive: color, emissiveIntensity: 0.2, side: THREE.DoubleSide })
+  );
+  hood.position.y = 1.72;
+  group.add(hood);
+
+  // накидка сзади — сразу показывает, где "спина"
+  const cape = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.62, 1.05),
+    new THREE.MeshStandardMaterial({ color: 0x181828, emissive: color, emissiveIntensity: 0.15, side: THREE.DoubleSide })
+  );
+  cape.position.set(0, 1.0, -0.27);
+  group.add(cape);
+
+  // посох, направлен вперёд-вбок — показывает, куда смотрит маг
+  const staff = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.03, 0.03, 1.25, 6),
+    new THREE.MeshStandardMaterial({ color: 0x3a2a1a })
+  );
+  staff.position.set(0.32, 0.95, 0.22);
+  staff.rotation.z = 0.18;
+  group.add(staff);
+
+  // светящийся орб на посохе — "спецэффект"
+  const orb = new THREE.Mesh(
+    new THREE.SphereGeometry(0.1, 12, 12),
+    new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 2.2 })
+  );
+  orb.position.set(0.37, 1.58, 0.28);
+  group.add(orb);
+
+  const glow = new THREE.PointLight(color, 1.3, 3.5);
+  glow.position.copy(orb.position);
+  group.add(glow);
+
+  group.userData.bodyMesh = robe;
+  group.userData.orbMesh = orb;
   return group;
 }
 
-const player = makeCharacterMesh(0x2dd4ff);
+const player = makeMageMesh(0x2dd4ff);
 player.position.set(0, 0, 0);
 scene.add(player);
 
 const enemyTemplate = 0xff3b6b;
-let enemy = makeCharacterMesh(enemyTemplate);
+let enemy = makeMageMesh(enemyTemplate);
 enemy.position.set(6, 0, -4);
 scene.add(enemy);
 
@@ -176,7 +269,7 @@ function tryCreateEcho() {
   state.echoActive = true;
 
   const first = state.echoData[0];
-  state.echo = makeCharacterMesh(0x9cf6ff);
+  state.echo = makeMageMesh(0x9cf6ff);
   state.echo.position.set(first.x, 0, first.z);
   state.echo.rotation.y = first.ry;
   state.echo.traverse((obj) => {
@@ -288,7 +381,7 @@ function defeatEnemy() {
 }
 
 function respawnEnemy() {
-  enemy = makeCharacterMesh(enemyTemplate);
+  enemy = makeMageMesh(enemyTemplate);
   const angle = Math.random() * Math.PI * 2;
   enemy.position.set(Math.cos(angle) * 8, 0, Math.sin(angle) * 8);
   scene.add(enemy);
