@@ -103,59 +103,102 @@ createPlanet({ radius: 1.3, color: 0xff5c8a, x: -35, y: 50, z: 55 });
 createPlanet({ radius: 2.0, color: 0x9cf6ff, x: 0, y: 60, z: -85 });
 
 // ---------- ИГРОК: ФИГУРА МАГА ----------
-// Строим силуэт мага из простых форм: плащ (конус/цилиндр), капюшон,
-// накидка сзади и посох со светящимся навершием — вместо простого кубика.
+// Строим силуэт мага из простых форм: плащ с расклешённым подолом,
+// капюшон, руки, посох со светящимся навершием — вместо простого кубика.
 function makeMageMesh(color) {
   const group = new THREE.Group();
 
-  // мантия/плащ — сужается кверху
+  // торс мантии — короче и шире, чтобы не выглядел ракетой
   const robe = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.24, 0.5, 1.3, 10),
+    new THREE.CylinderGeometry(0.28, 0.4, 0.85, 12),
     new THREE.MeshStandardMaterial({ color: 0x14141f, emissive: color, emissiveIntensity: 0.12 })
   );
-  robe.position.y = 0.75;
+  robe.position.y = 0.95;
   group.add(robe);
 
-  // светящаяся кайма понизу мантии
+  // расклешённый подол внизу — классический силуэт мантии мага
+  const skirt = new THREE.Mesh(
+    new THREE.ConeGeometry(0.62, 0.5, 14),
+    new THREE.MeshStandardMaterial({ color: 0x14141f, emissive: color, emissiveIntensity: 0.1 })
+  );
+  skirt.position.y = 0.42;
+  group.add(skirt);
+
+  // светящаяся кайма понизу подола
   const trim = new THREE.Mesh(
-    new THREE.TorusGeometry(0.46, 0.035, 8, 20),
+    new THREE.TorusGeometry(0.6, 0.035, 8, 24),
     new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 1.4 })
   );
   trim.rotation.x = Math.PI / 2;
-  trim.position.y = 0.16;
+  trim.position.y = 0.19;
   group.add(trim);
+
+  // плечи — делают силуэт шире сверху, менее "конусом-ракетой"
+  const shoulders = new THREE.Mesh(
+    new THREE.SphereGeometry(0.33, 12, 12, 0, Math.PI * 2, 0, Math.PI / 2),
+    new THREE.MeshStandardMaterial({ color: 0x14141f, emissive: color, emissiveIntensity: 0.15 })
+  );
+  shoulders.position.y = 1.35;
+  group.add(shoulders);
 
   // голова
   const head = new THREE.Mesh(
     new THREE.SphereGeometry(0.22, 14, 14),
     new THREE.MeshStandardMaterial({ color: 0xf0cba6 })
   );
-  head.position.y = 1.53;
+  head.position.y = 1.58;
   group.add(head);
 
-  // капюшон
+  // глаза — небольшой анимешный штрих
+  const eyeGeo = new THREE.SphereGeometry(0.03, 8, 8);
+  const eyeMat = new THREE.MeshStandardMaterial({ color: 0x0a0a12 });
+  const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
+  eyeL.position.set(-0.08, 1.58, 0.19);
+  group.add(eyeL);
+  const eyeR = eyeL.clone();
+  eyeR.position.x = 0.08;
+  group.add(eyeR);
+
+  // капюшон — ниже и шире, без острого "шпиля"
   const hood = new THREE.Mesh(
-    new THREE.ConeGeometry(0.32, 0.5, 12, 1, true),
+    new THREE.ConeGeometry(0.38, 0.32, 14, 1, true),
     new THREE.MeshStandardMaterial({ color: 0x14141f, emissive: color, emissiveIntensity: 0.2, side: THREE.DoubleSide })
   );
-  hood.position.y = 1.72;
+  hood.position.y = 1.7;
   group.add(hood);
 
-  // накидка сзади — сразу показывает, где "спина"
+  // накидка сзади — сразу видно, где "спина"
   const cape = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.62, 1.05),
+    new THREE.PlaneGeometry(0.6, 1.0),
     new THREE.MeshStandardMaterial({ color: 0x181828, emissive: color, emissiveIntensity: 0.15, side: THREE.DoubleSide })
   );
-  cape.position.set(0, 1.0, -0.27);
+  cape.position.set(0, 1.15, -0.3);
   group.add(cape);
 
-  // посох, направлен вперёд-вбок — показывает, куда смотрит маг
+  // рука, держащая посох
+  const arm = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.05, 0.05, 0.5, 8),
+    new THREE.MeshStandardMaterial({ color: 0x14141f, emissive: color, emissiveIntensity: 0.1 })
+  );
+  arm.position.set(0.28, 1.05, 0.12);
+  arm.rotation.z = -0.7;
+  arm.rotation.x = -0.25;
+  group.add(arm);
+
+  const hand = new THREE.Mesh(
+    new THREE.SphereGeometry(0.07, 8, 8),
+    new THREE.MeshStandardMaterial({ color: 0xf0cba6 })
+  );
+  hand.position.set(0.38, 0.88, 0.24);
+  group.add(hand);
+
+  // посох, выходит из руки вверх — показывает направление взгляда мага
   const staff = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.03, 0.03, 1.25, 6),
+    new THREE.CylinderGeometry(0.03, 0.03, 1.1, 8),
     new THREE.MeshStandardMaterial({ color: 0x3a2a1a })
   );
-  staff.position.set(0.32, 0.95, 0.22);
-  staff.rotation.z = 0.18;
+  staff.position.set(0.4, 1.35, 0.28);
+  staff.rotation.z = 0.12;
   group.add(staff);
 
   // светящийся орб на посохе — "спецэффект"
@@ -163,7 +206,7 @@ function makeMageMesh(color) {
     new THREE.SphereGeometry(0.1, 12, 12),
     new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 2.2 })
   );
-  orb.position.set(0.37, 1.58, 0.28);
+  orb.position.set(0.43, 1.9, 0.32);
   group.add(orb);
 
   const glow = new THREE.PointLight(color, 1.3, 3.5);
@@ -210,6 +253,29 @@ window.addEventListener('keydown', (e) => {
 });
 window.addEventListener('keyup', (e) => { keys[e.code] = false; });
 
+// ---------- КАМЕРА ОТ МЫШИ (можно смотреть вверх — на звёзды и планеты) ----------
+let camYaw = 0;
+let camPitch = 0.25;
+const CAMERA_DISTANCE = 6;
+const MOUSE_SENSITIVITY = 0.0022;
+
+renderer.domElement.addEventListener('click', () => {
+  renderer.domElement.requestPointerLock();
+});
+
+document.addEventListener('mousemove', (e) => {
+  if (document.pointerLockElement !== renderer.domElement) return;
+  camYaw -= e.movementX * MOUSE_SENSITIVITY;
+  camPitch -= e.movementY * MOUSE_SENSITIVITY;
+  camPitch = THREE.MathUtils.clamp(camPitch, -1.2, 1.3);
+});
+
+function getCameraForwardRight() {
+  const forward = new THREE.Vector3(Math.sin(camYaw), 0, Math.cos(camYaw));
+  const right = new THREE.Vector3(forward.z, 0, -forward.x);
+  return { forward, right };
+}
+
 // ---------- UI ----------
 const playerHpBar = document.getElementById('playerHpBar');
 const enemyHpBar = document.getElementById('enemyHpBar');
@@ -224,20 +290,26 @@ function showBanner(text, ms = 1200) {
   showBanner._t = setTimeout(() => banner.classList.add('hidden'), ms);
 }
 
-// ---------- ЛОГИКА: ДВИЖЕНИЕ ----------
+// ---------- ЛОГИКА: ДВИЖЕНИЕ (относительно направления камеры) ----------
 function updateMovement(delta) {
   if (state.gameOver) return;
-  const dir = new THREE.Vector3();
-  if (keys['KeyW']) dir.z -= 1;
-  if (keys['KeyS']) dir.z += 1;
-  if (keys['KeyA']) dir.x -= 1;
-  if (keys['KeyD']) dir.x += 1;
+  const { forward, right } = getCameraForwardRight();
+  const moveDir = new THREE.Vector3();
+  if (keys['KeyW']) moveDir.add(forward);
+  if (keys['KeyS']) moveDir.sub(forward);
+  if (keys['KeyD']) moveDir.add(right);
+  if (keys['KeyA']) moveDir.sub(right);
 
-  if (dir.lengthSq() > 0) {
-    dir.normalize();
-    player.position.x += dir.x * PLAYER_SPEED * delta;
-    player.position.z += dir.z * PLAYER_SPEED * delta;
-    player.rotation.y = Math.atan2(dir.x, dir.z);
+  if (moveDir.lengthSq() > 0) {
+    moveDir.normalize();
+    player.position.x += moveDir.x * PLAYER_SPEED * delta;
+    player.position.z += moveDir.z * PLAYER_SPEED * delta;
+
+    // плавный поворот к направлению движения — без резких скачков
+    const targetRot = Math.atan2(moveDir.x, moveDir.z);
+    let diff = targetRot - player.rotation.y;
+    diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+    player.rotation.y += diff * Math.min(1, delta * 12);
   }
 
   // Границы арены
@@ -438,15 +510,19 @@ function animate() {
     if (state.counterWindow > 0) state.counterWindow -= delta;
   }
 
-  // Камера от третьего лица, плавно следует за игроком
-  const camOffset = new THREE.Vector3(
-    -Math.sin(player.rotation.y) * 6,
-    4.5,
-    -Math.cos(player.rotation.y) * 6
+  // Камера от третьего лица: направление зависит от мыши (yaw/pitch),
+  // поэтому можно смотреть вверх и видеть звёзды/планеты.
+  const lookDir = new THREE.Vector3(
+    Math.sin(camYaw) * Math.cos(camPitch),
+    Math.sin(camPitch),
+    Math.cos(camYaw) * Math.cos(camPitch)
   );
-  const desiredCamPos = new THREE.Vector3().addVectors(player.position, camOffset);
-  camera.position.lerp(desiredCamPos, 0.08);
-  camera.lookAt(player.position.x, player.position.y + 1, player.position.z);
+  const desiredCamPos = player.position.clone()
+    .add(new THREE.Vector3(0, 1.6, 0))
+    .sub(lookDir.clone().multiplyScalar(CAMERA_DISTANCE));
+  camera.position.lerp(desiredCamPos, 0.18);
+  const lookTarget = camera.position.clone().add(lookDir.clone().multiplyScalar(10));
+  camera.lookAt(lookTarget);
 
   updateUI();
   renderer.render(scene, camera);
