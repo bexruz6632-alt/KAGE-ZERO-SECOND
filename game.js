@@ -102,127 +102,53 @@ createPlanet({ radius: 2.4, color: 0x2dd4ff, x: 40, y: 45, z: 65 });
 createPlanet({ radius: 1.3, color: 0xff5c8a, x: -35, y: 50, z: 55 });
 createPlanet({ radius: 2.0, color: 0x9cf6ff, x: 0, y: 60, z: -85 });
 
-// ---------- ИГРОК: ФИГУРА МАГА ----------
-// Строим силуэт мага из простых форм: плащ с расклешённым подолом,
-// капюшон, руки, посох со светящимся навершием — вместо простого кубика.
-function makeMageMesh(color) {
+// ---------- ИГРОК: СПРАЙТ МАГА (твой арт, вырезанный из фона) ----------
+// Билборд-спрайт всегда развёрнут к камере — классический анимешный приём
+// (как в старых играх), пока не перешли на полноценную 3D-модель.
+const rayTexture = new THREE.TextureLoader().load('ray.png');
+rayTexture.colorSpace = THREE.SRGBColorSpace;
+const SPRITE_ASPECT = 504 / 800; // ширина / высота исходной картинки
+const SPRITE_HEIGHT = 2.1;
+const SPRITE_WIDTH = SPRITE_HEIGHT * SPRITE_ASPECT;
+
+function makeMageMesh(tintColor, opacity = 1) {
   const group = new THREE.Group();
 
-  // торс мантии — короче и шире, чтобы не выглядел ракетой
-  const robe = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.28, 0.4, 0.85, 12),
-    new THREE.MeshStandardMaterial({ color: 0x14141f, emissive: color, emissiveIntensity: 0.12 })
+  const material = new THREE.SpriteMaterial({
+    map: rayTexture,
+    color: tintColor,
+    transparent: true,
+    opacity,
+  });
+  const sprite = new THREE.Sprite(material);
+  sprite.scale.set(SPRITE_WIDTH, SPRITE_HEIGHT, 1);
+  sprite.position.y = SPRITE_HEIGHT / 2;
+  sprite.userData.baseScale = sprite.scale.clone();
+  group.add(sprite);
+
+  // светящийся круг у ног — читается как магическая аура
+  const auraColor = tintColor === 0xffffff ? 0x2dd4ff : tintColor;
+  const aura = new THREE.Mesh(
+    new THREE.RingGeometry(0.35, 0.5, 24),
+    new THREE.MeshBasicMaterial({ color: auraColor, transparent: true, opacity: 0.7, side: THREE.DoubleSide })
   );
-  robe.position.y = 0.95;
-  group.add(robe);
+  aura.rotation.x = -Math.PI / 2;
+  aura.position.y = 0.02;
+  group.add(aura);
 
-  // расклешённый подол внизу — классический силуэт мантии мага
-  const skirt = new THREE.Mesh(
-    new THREE.ConeGeometry(0.62, 0.5, 14),
-    new THREE.MeshStandardMaterial({ color: 0x14141f, emissive: color, emissiveIntensity: 0.1 })
-  );
-  skirt.position.y = 0.42;
-  group.add(skirt);
-
-  // светящаяся кайма понизу подола
-  const trim = new THREE.Mesh(
-    new THREE.TorusGeometry(0.6, 0.035, 8, 24),
-    new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 1.4 })
-  );
-  trim.rotation.x = Math.PI / 2;
-  trim.position.y = 0.19;
-  group.add(trim);
-
-  // плечи — делают силуэт шире сверху, менее "конусом-ракетой"
-  const shoulders = new THREE.Mesh(
-    new THREE.SphereGeometry(0.33, 12, 12, 0, Math.PI * 2, 0, Math.PI / 2),
-    new THREE.MeshStandardMaterial({ color: 0x14141f, emissive: color, emissiveIntensity: 0.15 })
-  );
-  shoulders.position.y = 1.35;
-  group.add(shoulders);
-
-  // голова
-  const head = new THREE.Mesh(
-    new THREE.SphereGeometry(0.22, 14, 14),
-    new THREE.MeshStandardMaterial({ color: 0xf0cba6 })
-  );
-  head.position.y = 1.58;
-  group.add(head);
-
-  // глаза — небольшой анимешный штрих
-  const eyeGeo = new THREE.SphereGeometry(0.03, 8, 8);
-  const eyeMat = new THREE.MeshStandardMaterial({ color: 0x0a0a12 });
-  const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
-  eyeL.position.set(-0.08, 1.58, 0.19);
-  group.add(eyeL);
-  const eyeR = eyeL.clone();
-  eyeR.position.x = 0.08;
-  group.add(eyeR);
-
-  // капюшон — ниже и шире, без острого "шпиля"
-  const hood = new THREE.Mesh(
-    new THREE.ConeGeometry(0.38, 0.32, 14, 1, true),
-    new THREE.MeshStandardMaterial({ color: 0x14141f, emissive: color, emissiveIntensity: 0.2, side: THREE.DoubleSide })
-  );
-  hood.position.y = 1.7;
-  group.add(hood);
-
-  // накидка сзади — сразу видно, где "спина"
-  const cape = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.6, 1.0),
-    new THREE.MeshStandardMaterial({ color: 0x181828, emissive: color, emissiveIntensity: 0.15, side: THREE.DoubleSide })
-  );
-  cape.position.set(0, 1.15, -0.3);
-  group.add(cape);
-
-  // рука, держащая посох
-  const arm = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.05, 0.05, 0.5, 8),
-    new THREE.MeshStandardMaterial({ color: 0x14141f, emissive: color, emissiveIntensity: 0.1 })
-  );
-  arm.position.set(0.28, 1.05, 0.12);
-  arm.rotation.z = -0.7;
-  arm.rotation.x = -0.25;
-  group.add(arm);
-
-  const hand = new THREE.Mesh(
-    new THREE.SphereGeometry(0.07, 8, 8),
-    new THREE.MeshStandardMaterial({ color: 0xf0cba6 })
-  );
-  hand.position.set(0.38, 0.88, 0.24);
-  group.add(hand);
-
-  // посох, выходит из руки вверх — показывает направление взгляда мага
-  const staff = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.03, 0.03, 1.1, 8),
-    new THREE.MeshStandardMaterial({ color: 0x3a2a1a })
-  );
-  staff.position.set(0.4, 1.35, 0.28);
-  staff.rotation.z = 0.12;
-  group.add(staff);
-
-  // светящийся орб на посохе — "спецэффект"
-  const orb = new THREE.Mesh(
-    new THREE.SphereGeometry(0.1, 12, 12),
-    new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 2.2 })
-  );
-  orb.position.set(0.43, 1.9, 0.32);
-  group.add(orb);
-
-  const glow = new THREE.PointLight(color, 1.3, 3.5);
-  glow.position.copy(orb.position);
+  const glow = new THREE.PointLight(auraColor, 1.1, 3.5);
+  glow.position.y = 0.6;
   group.add(glow);
 
-  group.userData.bodyMesh = robe;
-  group.userData.orbMesh = orb;
+  group.userData.spriteMesh = sprite;
   return group;
 }
 
-const player = makeMageMesh(0x2dd4ff);
+const player = makeMageMesh(0xffffff);
 player.position.set(0, 0, 0);
 scene.add(player);
 
-const enemyTemplate = 0xff3b6b;
+const enemyTemplate = 0xff8a8a;
 let enemy = makeMageMesh(enemyTemplate);
 enemy.position.set(6, 0, -4);
 scene.add(enemy);
@@ -341,16 +267,9 @@ function tryCreateEcho() {
   state.echoActive = true;
 
   const first = state.echoData[0];
-  state.echo = makeMageMesh(0x9cf6ff);
+  state.echo = makeMageMesh(0x9cf6ff, 0.5);
   state.echo.position.set(first.x, 0, first.z);
   state.echo.rotation.y = first.ry;
-  state.echo.traverse((obj) => {
-    if (obj.isMesh) {
-      obj.material = obj.material.clone();
-      obj.material.transparent = true;
-      obj.material.opacity = 0.45;
-    }
-  });
   scene.add(state.echo);
 }
 
@@ -409,10 +328,7 @@ function tryZeroSecond() {
 }
 
 function zeroFlash(success) {
-  const body = player.userData.bodyMesh;
-  const original = body.material.emissiveIntensity;
-  body.material.emissiveIntensity = success ? 1.2 : 0.15;
-  setTimeout(() => { body.material.emissiveIntensity = original; }, 200);
+  pulseSprite(player, success ? 1.25 : 1.05, 200);
 }
 
 // ---------- АТАКА ИГРОКА ----------
@@ -439,10 +355,15 @@ function tryAttack() {
 }
 
 function flashHit(target) {
-  const body = target.userData.bodyMesh;
-  const original = body.material.emissiveIntensity;
-  body.material.emissiveIntensity = 1.5;
-  setTimeout(() => { body.material.emissiveIntensity = original; }, 150);
+  pulseSprite(target, 1.2, 150);
+}
+
+// короткая "вспышка" — сприт на миг увеличивается, вместо emissive-свечения
+function pulseSprite(target, scaleMultiplier, ms) {
+  const sprite = target.userData.spriteMesh;
+  const base = sprite.userData.baseScale;
+  sprite.scale.set(base.x * scaleMultiplier, base.y * scaleMultiplier, 1);
+  setTimeout(() => sprite.scale.copy(base), ms);
 }
 
 function defeatEnemy() {
