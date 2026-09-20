@@ -102,6 +102,38 @@ createPlanet({ radius: 2.4, color: 0x2dd4ff, x: 40, y: 45, z: 65 });
 createPlanet({ radius: 1.3, color: 0xff5c8a, x: -35, y: 50, z: 55 });
 createPlanet({ radius: 2.0, color: 0x9cf6ff, x: 0, y: 60, z: -85 });
 
+// ---------- ГОРОД ASTER-9: неоновый каркас зданий вокруг арены ----------
+function createCityscape() {
+  const neonColors = [0x2dd4ff, 0x7f5cff, 0xff3b6b, 0x9cf6ff];
+  const buildingCount = 46;
+  for (let i = 0; i < buildingCount; i++) {
+    const angle = (i / buildingCount) * Math.PI * 2 + (Math.random() - 0.5) * 0.15;
+    const radius = 30 + Math.random() * 35;
+    const height = 4 + Math.random() * 16;
+    const width = 2 + Math.random() * 3.5;
+    const depth = 2 + Math.random() * 3.5;
+    const x = Math.cos(angle) * radius;
+    const z = Math.sin(angle) * radius;
+
+    const body = new THREE.Mesh(
+      new THREE.BoxGeometry(width, height, depth),
+      new THREE.MeshStandardMaterial({ color: 0x0a0a16, roughness: 0.9 })
+    );
+    body.position.set(x, height / 2, z);
+    scene.add(body);
+
+    // светящийся неоновый каркас по рёбрам — синтвейв-стиль
+    const edgeColor = neonColors[Math.floor(Math.random() * neonColors.length)];
+    const edges = new THREE.LineSegments(
+      new THREE.EdgesGeometry(body.geometry),
+      new THREE.LineBasicMaterial({ color: edgeColor })
+    );
+    edges.position.copy(body.position);
+    scene.add(edges);
+  }
+}
+createCityscape();
+
 // ---------- ИГРОК: СПРАЙТ МАГА (твой арт, вырезанный из фона) ----------
 // Билборд-спрайт всегда развёрнут к камере — классический анимешный приём
 // (как в старых играх), пока не перешли на полноценную 3D-модель.
@@ -167,6 +199,8 @@ const state = {
   echoData: null,
   echoStart: 0,
   gameOver: false,
+  playerMoving: false,
+  enemyMoving: false,
 };
 
 // ---------- ВВОД ----------
@@ -226,7 +260,9 @@ function updateMovement(delta) {
   if (keys['KeyD']) moveDir.add(right);
   if (keys['KeyA']) moveDir.sub(right);
 
-  if (moveDir.lengthSq() > 0) {
+  state.playerMoving = moveDir.lengthSq() > 0;
+
+  if (state.playerMoving) {
     moveDir.normalize();
     player.position.x += moveDir.x * PLAYER_SPEED * delta;
     player.position.z += moveDir.z * PLAYER_SPEED * delta;
@@ -241,6 +277,23 @@ function updateMovement(delta) {
   // Границы арены
   player.position.x = THREE.MathUtils.clamp(player.position.x, -25, 25);
   player.position.z = THREE.MathUtils.clamp(player.position.z, -25, 25);
+}
+
+// ---------- "ХОДЬБА" ДЛЯ СПРАЙТА ----------
+// Настоящей покадровой анимации у нас нет (только одна картинка), поэтому
+// имитируем шаги подпрыгиванием и лёгким покачиванием спрайта.
+function applyWalkBob(target, isMoving, elapsed) {
+  const sprite = target.userData.spriteMesh;
+  if (!sprite) return;
+  const base = sprite.userData.baseScale;
+  if (isMoving) {
+    const bob = Math.abs(Math.sin(elapsed * 9)) * 0.08;
+    sprite.position.y = base.y / 2 + bob;
+    sprite.material.rotation = Math.sin(elapsed * 9) * 0.05;
+  } else {
+    sprite.position.y = base.y / 2;
+    sprite.material.rotation = 0;
+  }
 }
 
 // ---------- ЛОГИКА: ЗАПИСЬ ИСТОРИИ ДЛЯ ECHO ----------
@@ -388,8 +441,9 @@ function updateEnemy(delta) {
 
   const toPlayer = new THREE.Vector3().subVectors(player.position, enemy.position);
   const dist = toPlayer.length();
+  state.enemyMoving = dist < AGGRO_RANGE && dist > ENEMY_ATTACK_RANGE;
 
-  if (dist < AGGRO_RANGE && dist > ENEMY_ATTACK_RANGE) {
+  if (state.enemyMoving) {
     toPlayer.normalize();
     enemy.position.x += toPlayer.x * ENEMY_SPEED * delta;
     enemy.position.z += toPlayer.z * ENEMY_SPEED * delta;
@@ -430,6 +484,9 @@ function animate() {
     if (state.enemyAttackCooldown > 0) state.enemyAttackCooldown -= delta;
     if (state.counterWindow > 0) state.counterWindow -= delta;
   }
+
+  applyWalkBob(player, state.playerMoving, elapsedTime);
+  if (state.enemyAlive) applyWalkBob(enemy, state.enemyMoving, elapsedTime);
 
   // Камера от третьего лица: направление зависит от мыши (yaw/pitch),
   // поэтому можно смотреть вверх и видеть звёзды/планеты.
